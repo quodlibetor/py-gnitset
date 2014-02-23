@@ -1,7 +1,8 @@
 ;;; py-gnitset.el --- Run your Python tests any way you'd like
 ;;
-;; version: 0.1
 ;; Copyright (C) 2014 Brandon W Maister
+;;
+;; Version: 0.1
 ;; Author: Brandon W Maister <quodlibetor@gmail.com>
 ;; URL: https://www.github.com/quodlibetor/py-gnitset
 ;; License: GPLv2+ http://www.gnu.org/licenses/gpl-2.0.html
@@ -104,6 +105,8 @@
 
 (require 'term)
 (require 'compile)
+(eval-when-compile
+  (require 'virtualenv nil t))
 
 (defgroup py-gnitset nil
   "Customization options for py-gnitset"
@@ -126,26 +129,26 @@ that's not set to use a global py.test command.
 
 To set this for a project you should use dir-locals, for example, this .dir-locals.el:
 
-    ((nil . ((virtualenv-workon . \"welltestded\")
-	     (virtualenv-default-directory . \"/home/user/projects/welltested/\"))))
+    ((nil . ((virtualenv-workon . \"welltested\")
+             (virtualenv-default-directory . \"/home/user/projects/welltested/\"))))
 
 is equivalent to this one:
 
-    ((nil . ((virtualenv-workon . \"welltestded\")
-	     (virtualenv-default-directory . \"/home/user/projects/welltested/\")
+    ((nil . ((virtualenv-workon . \"welltested\")
+             (virtualenv-default-directory . \"/home/user/projects/welltested/\")
              (py-gnitset-test-runner . \"/home/bwm/.virtualenvs/welltested/bin/py.test\"))))
 
 Which is equivalent to the following:
 
-    ((nil . ((virtualenv-workon . \"welltestded\")
-	     (virtualenv-default-directory . \"/home/user/projects/welltested/\")
+    ((nil . ((virtualenv-workon . \"welltested\")
+             (virtualenv-default-directory . \"/home/user/projects/welltested/\")
              (py-gnitset-test-runner . \"py.test\"))))
 
 But if you wanted to use nose (which doesn't work for function or
 class level things yet) you would probably do something like:
 
-    ((nil . ((virtualenv-workon . \"welltestded\")
-	     (virtualenv-default-directory . \"/home/user/projects/welltested/\")
+    ((nil . ((virtualenv-workon . \"welltested\")
+             (virtualenv-default-directory . \"/home/user/projects/welltested/\")
              (py-gnitset-test-runner . \"nosetests\"))))
 
 And if you have a runner script called in
