@@ -107,6 +107,7 @@
 
 (defgroup py-gnitset nil
   "Customization options for py-gnitset"
+  :group 'external
   :prefix 'py-gnitset)
 
 (defcustom py-gnitset-project-root-files
@@ -173,7 +174,8 @@ Valid choices are 'pytest and 'nose"
   :options '(pytest nose))
 
 
-(defvar py-gnitset-run-history nil)
+(defvar py-gnitset--run-history nil)
+(defvar py-gnitset--source nil)
 
 (let ((anything "[A-Za-z0-9_]"))
   (defconst py-gnitset-def-re (format "\\(def\\|\\class\\) \\(%s*[tT]est%s*\\)" anything anything))
@@ -252,7 +254,7 @@ needed by that style."
          (full-cmdline cmdline)
          (full-cmdline (if show-prompt
                       (read-shell-command "Run: " full-cmdline
-                                          'py-gnitset-run-history)
+                                          'py-gnitset--run-history)
                     full-cmdline))
          (bufname (py-gnitset-local-bufname)))
     (cond
@@ -275,13 +277,13 @@ needed by that style."
      ((equal style 'compile)
       (compilation-start full-cmdline nil
                          (lambda (mode)
-                           (if (boundp 'py-gnitset-source)
-                               (with-current-buffer py-gnitset-source
+                           (if (boundp 'py-gnitset--source)
+                               (with-current-buffer py-gnitset--source
                                  (py-gnitset-local-bufname))
                              (py-gnitset-local-bufname))))
       (let ((buf (current-buffer)))
         (with-current-buffer (py-gnitset-local-bufname)
-          (set (make-local-variable 'py-gnitset-source) buf)
+          (set (make-local-variable 'py-gnitset--source) buf)
           (set (make-local-variable 'show-trailing-whitespace) nil)
           (local-set-key "g" 'py-gnitset-recompile))))
      ((equal style 'pdb)
@@ -295,12 +297,12 @@ This is because recompile creates a new buffer, instead of using
 the current one, meaning that buffer-local variables get reset on
 every recompilation, meaning that it's hard to know where to go."
   (interactive)
-  (let* ((source-buffer py-gnitset-source)
+  (let* ((source-buffer py-gnitset--source)
          (compile-buffer (with-current-buffer source-buffer
                     (py-gnitset-local-bufname))))
     (recompile)
     (with-current-buffer compile-buffer
-      (set (make-local-variable 'py-gnitset-source) source-buffer)
+      (set (make-local-variable 'py-gnitset--source) source-buffer)
       (set (make-local-variable 'show-trailing-whitespace) nil)
       (local-set-key "g" 'py-gnitset-recompile))))
 
@@ -316,7 +318,7 @@ to be run"
     (file-truename
      (if (or (string-match "test_.*\\.py$" filename)
              (string-match ".*_test\\.py$" filename)
-             (file-directory-p dir))
+             (file-directory-p path))
          path
        (file-name-directory path)))))
 
@@ -455,9 +457,9 @@ See `py-gnitset-term-all' for details"
 If prefixed by C-u, it lets you to edit the command in the
 minibuffer before executing it."
   (interactive "P")
-  (if (not py-gnitset-run-history)
+  (if (not py-gnitset--run-history)
       (message "No preceding py-gnitset commands in history")
-    (let ((cmdline (car py-gnitset-run-history)))
+    (let ((cmdline (car py-gnitset--run-history)))
       (py-gnitset-run cmdline show-prompt 'ansi))))
 
 ;;;###autoload
