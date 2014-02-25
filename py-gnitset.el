@@ -265,11 +265,10 @@ kind of buffer to run the process in, as well as some extra args
 needed by that style."
   (let* ((default-directory (py-gnitset-locate-dominating-file))
          (process-environment (list (format "PWD=%s" default-directory)))
-         (full-cmdline cmdline)
-         (full-cmdline (if show-prompt
-                      (read-shell-command "Run: " full-cmdline
+         (cmdline (if show-prompt
+                      (read-shell-command "Run: " cmdline
                                           'py-gnitset--run-history)
-                    full-cmdline))
+                    cmdline))
          (bufname (py-gnitset-local-bufname)))
     (cond
      ((equal style 'ansi)
@@ -280,16 +279,16 @@ needed by that style."
             (term-kill-subjob))
         (setq buffer-read-only nil)
         (erase-buffer)
-        (insert full-cmdline)
+        (insert cmdline)
         (newline)
-        (term-ansi-make-term bufname "/bin/sh" nil "-c" (concat  full-cmdline " -s"))
+        (term-ansi-make-term bufname "/bin/sh" nil "-c" (concat  cmdline " -s"))
         (term-char-mode)
         (let ((proc (get-buffer-process term-buffer)))
           ; override the default sentinel set by term-ansi-make-term
           (set-process-sentinel proc 'py-gnitset-term-sentinel))
         (set (make-local-variable 'show-trailing-whitespace) nil)))
      ((equal style 'compile)
-      (compilation-start full-cmdline nil
+      (compilation-start cmdline nil
                          (lambda (mode)
                            (if (boundp 'py-gnitset--source)
                                (with-current-buffer py-gnitset--source
