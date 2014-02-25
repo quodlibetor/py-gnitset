@@ -11,7 +11,7 @@
 ;; Description
 ;; -----------
 ;;
-;; This mode adds some useful functionality for running Python unittest
+;; This minor mode adds some useful functionality for running Python unittest
 ;; programs from within Emacs.
 ;;
 ;; It allows you to run py.test, nose, or custom test runners within various

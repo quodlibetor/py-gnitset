@@ -1,7 +1,11 @@
-Description
------------
+=============
+ Description
+=============
 
-This mode adds some useful functionality for running Python unittest
+Run your Python tests any way you'd like
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This minor mode adds some useful functionality for running Python unittest
 programs from within Emacs.
 
 It allows you to run py.test, nose, or custom test runners within various
@@ -42,22 +46,28 @@ both py.test and nose, and the pytest and nose Emacs runners have different but
 complementary features, so I kinda hacked them all together, much is owed to
 both of them.
 
+The home page is https://github.com/quodlibetor/py-gnitset
+
+.. note:: This is a manually edited version of the description from
+   ``py-gnitset.el``. As such it might have errors or be seriously out of date.
+   Please see that file for the *real* README.
+
 Setting Up
 ----------
 
-Adding '(py-gnitset-global-mode)' to your .emacs will attempt to turn on
-py-gnitset-mode in every 'python-mode' buffer.
+Adding ``(py-gnitset-global-mode)`` to your .emacs will attempt to turn on
+py-gnitset-mode in every python-mode buffer.
 
 You can try py-gnitset without global installation by just calling "M-x
-py-gnitset-mode" in any Python buffer.  'py-gnitset-mode' just adds
-some keybindings to the C-c t map, so if you want to do something fancy you
+py-gnitset-mode" in any Python buffer. ``py-gnitset-mode`` just adds some
+keybindings to the "C-c t" map, so if you want to do something fancy you
 could for example do::
 
    (add-hook 'python-mode-hook
               (lambda ()
                  (local-set-key (kbd "C-c n") py-gnitset-map)))
 
-To bind the keys to the C-c n map instead, with no loss of functionality.
+To bind the keys to the "C-c n" map instead, with no loss of functionality.
 
 ==========   =========================
         Default Bindings
@@ -92,3 +102,9 @@ To Do
   rather than the static cond list)
 - Add a history of test runs, instead of just clearing out test buffers.
 - Add a way to run tests associated with the current *non-test* function
+- Remove dependency on virtualenv.el-defined variables
+- Create a new more versatile ``py-gnitset-runners`` alist into an alist of
+  ``("runner" . 'format)`` pairs that combines ``py-gnitset-test-runner`` and
+  ``py-gnitset-runner-format`` in a way that doesn't require multiple
+  dir-locals in the common case of a bunch of projects that use similar
+  conventions.
