@@ -50,6 +50,8 @@
 ;; complementary features, so I kinda hacked them all together, much is owed to
 ;; both of them.
 ;;
+;; The home page is https://github.com/quodlibetor/py-gnitset
+;;
 ;; Setting Up
 ;; ----------
 ;;
@@ -99,6 +101,12 @@
 ;;   rather than the static cond list)
 ;; - Add a history of test runs, instead of just clearing out test buffers.
 ;; - Add a way to run tests associated with the current *non-test* function
+;; - Remove dependency on virtualenv.el-defined variables
+;; - Create a new more versatile `py-gnitset-runners' alist into an alist of
+;;   ("runner" . 'format) pairs that combines `py-gnitset-test-runner' and
+;;   `py-gnitset-runner-format' in a way that doesn't require multiple
+;;   dir-locals in the common case of a bunch of projects that use similar
+;;   conventions.
 ;;
 ;;; Code:
 
@@ -197,6 +205,7 @@ Valid choices are 'pytest and 'nose"
 (defun py-gnitset-virtualenv-bin-or-current-dir ()
   "Try to find the virtualenv for the local dir, else local dir."
   (if (boundp 'virtualenv-workon)
+      ;; XXX remove this dependency on virtualenv.el
       (concat (expand-file-name virtualenv-root)
               "/" virtualenv-workon "/bin")
     "."))
@@ -310,8 +319,8 @@ every recompilation, meaning that it's hard to know where to go."
 (defun py-gnitset-arg-from-path (path)
   "Run either the current test file, or the current directory.
 
-If the current file name ends or starts with \"test\" it will be
-selected, otherwise we assume that you're in a directory
+If the current file name (PATH) ends or starts with \"test\" it
+will be selected, otherwise we assume that you're in a directory
 containing tests (e.g. editing conftest.py) and want all of them
 to be run"
   (let ((filename (file-name-nondirectory path)))
@@ -323,17 +332,20 @@ to be run"
        (file-name-directory path)))))
 
 (defun py-gnitset-current-function-name ()
+  "Return the name of the function that point is within."
   (save-excursion
     (if (search-backward-regexp py-gnitset-def-re)
         (match-string 2)
       nil)))
 
 (defun py-gnitset-current-class-name ()
+  "Return the name of the class that point is within."
   (save-excursion
     (when (search-backward-regexp py-gnitset-class-re)
       (match-string 1))))
 
 (defun py-gnitset-all-command ()
+  "Create a full command line."
   (format "%s %s "
           (py-gnitset-get-bin)
           (file-truename (py-gnitset-locate-dominating-file))))
@@ -387,7 +399,10 @@ This is based on the `py-gnitset-runner-format'"
 (defun py-gnitset-compile-all (show-prompt)
   "Execute all the tests in a `compilation-mode' buffer.
 
-Makes jumping to failures and original files very easy."
+Makes jumping to failures and original files very easy.
+
+SHOW-PROMPT, when t, means to show the command for editing in the
+minibuffer before it is executed."
   (interactive "P")
   (py-gnitset-run (py-gnitset-all-command) show-prompt 'compile))
 
@@ -395,7 +410,8 @@ Makes jumping to failures and original files very easy."
 (defun py-gnitset-compile-module (show-prompt)
   "Execute this module's tests in a compilation buffer.
 
-See `py-gnitset-all' for details"
+See `py-gnitset-compile-all' for details about usage and
+SHOW-PROMPT"
   (interactive "P")
   (py-gnitset-run (py-gnitset-module-command) show-prompt 'compile))
 
@@ -403,15 +419,17 @@ See `py-gnitset-all' for details"
 (defun py-gnitset-compile-class (show-prompt)
   "Execute the enclosing class's tests in a compilation buffer.
 
-See `py-gnitset-all' for details"
+See `py-gnitset-compile-all' for details about usage and
+SHOW-PROMPT"
   (interactive "P")
   (py-gnitset-run (py-gnitset-class-command) show-prompt 'compile))
 
 ;;;###autoload
 (defun py-gnitset-compile-one (show-prompt)
-  "Execute this function in a compilation buffer
+  "Run this function as a test in a compilation buffer.
 
-See `py-gnitset-all' for details"
+See `py-gnitset-compile-all' for details about usage and
+SHOW-PROMPT"
   (interactive "P")
   (py-gnitset-run (py-gnitset-function-command) show-prompt 'compile))
 
@@ -419,18 +437,22 @@ See `py-gnitset-all' for details"
 (defun py-gnitset-term-all (show-prompt)
   "Run py.test on the current test.
 
-'Run' in this context means 'execute in an ANSI term. This should
+'Run' in this context means 'execute in an ANSI term.  This should
 work better with things like `import ipdb; ipdb.set_trace()', if
 you just to use the --pdb flag use `py-gnitset-pdb-all' and related
-functions."
+functions.
+
+SHOW-PROMPT, when t, means to show the command for editing in the
+minibuffer before it is executed."
   (interactive "P")
   (py-gnitset-run (py-gnitset-all-command) show-prompt 'ansi))
 
 ;;;###autoload
 (defun py-gnitset-term-module (show-prompt)
-  "Run py.test on the current file in an interactive test buffer
+  "Run py.test on the current file in an interactive test buffer.
 
-See `py-gnitset-term-all' for details"
+See `py-gnitset-term-all' for details about usage and
+SHOW-PROMPT"
   (interactive "P")
   (py-gnitset-run (py-gnitset-module-command) show-prompt 'ansi))
 
@@ -446,7 +468,8 @@ See `py-gnitset-term-all' for details"
 (defun py-gnitset-term-one (show-prompt)
   "Run py.test on the current test.
 
-See `py-gnitset-term-all' for details"
+See `py-gnitset-term-all' for details about usage and
+SHOW-PROMPT"
   (interactive "P")
   (py-gnitset-run (py-gnitset-function-command) show-prompt 'ansi))
 
@@ -454,8 +477,8 @@ See `py-gnitset-term-all' for details"
 (defun py-gnitset-term-again (show-prompt)
   "Re-run the last py.test command.
 
-If prefixed by C-u, it lets you to edit the command in the
-minibuffer before executing it."
+If prefixed by C-u SHOW-PROMPT is true, and this function lets
+you edit the command in the minibuffer before executing it."
   (interactive "P")
   (if (not py-gnitset--run-history)
       (message "No preceding py-gnitset commands in history")
@@ -464,35 +487,41 @@ minibuffer before executing it."
 
 ;;;###autoload
 (defun py-gnitset-pdb-all (show-prompt)
-  "Run all tests in a pdb buffer
+  "Run all every test in a pdb buffer.
 
 This will drop into pdb mode on error, and should give you all
-the niceties associated with it (e.g. automatic buffer movement)"
+the niceties associated with it (e.g. automatic buffer movement
+when you step into new functions).
 
+SHOW-PROMPT, set by C-u, means to show the command that will be
+executed within the minibuffer for editing before running."
   (interactive "P")
   (py-gnitset-run (py-gnitset-all-command) show-prompt 'pdb))
 
 ;;;###autoload
 (defun py-gnitset-pdb-module (show-prompt)
-  "Run current module in a pdb buffer
+  "Run current module in a pdb buffer.
 
-See `py-gnitset-pdb-all' for details"
+See `py-gnitset-pdb-all' for details about usage and
+SHOW-PROMPT"
   (interactive "P")
   (py-gnitset-run (py-gnitset-module-command) show-prompt 'pdb))
 
 ;;;###autoload
 (defun py-gnitset-pdb-class (show-prompt)
-  "Run current module in a pdb buffer
+  "Run current module in a pdb buffer.
 
-See `py-gnitset-pdb-all' for details"
+See `py-gnitset-pdb-all' for details about usage and
+SHOW-PROMPT"
   (interactive "P")
   (py-gnitset-run (py-gnitset-class-command) show-prompt 'pdb))
 
 ;;;###autoload
 (defun py-gnitset-pdb-one (show-prompt)
-  "Run current function in a pdb buffer
+  "Run current function in a pdb buffer.
 
-See `py-gnitset-pdb-all' for details"
+See `py-gnitset-pdb-all' for details about usage and
+SHOW-PROMPT"
   (interactive "P")
   (py-gnitset-run (py-gnitset-function-command) show-prompt 'pdb))
 
