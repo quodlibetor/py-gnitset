@@ -186,7 +186,7 @@ Valid choices are 'pytest and 'nose"
 (defvar py-gnitset--source nil)
 
 (let ((anything "[A-Za-z0-9_]"))
-  (defconst py-gnitset-def-re (format "\\(def\\|\\class\\) \\(%s*[tT]est%s*\\)" anything anything))
+  (defconst py-gnitset-def-re (format "\\(def\\|class\\) \\(%s*[tT]est%s*\\)" anything anything))
   (defconst py-gnitset-class-re (format "class \\(%s*[tT]est%s*\\)" anything anything)))
 
 (defun py-gnitset-locate-dominating-file ()
