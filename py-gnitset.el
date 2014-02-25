@@ -218,10 +218,15 @@ Look in the current dir, all the ancestors, and the virtualenv."
       py-gnitset-test-runner
     (let* ((runner-dir (locate-dominating-file (buffer-file-name)
                                                py-gnitset-test-runner))
-           (runner (file-truename (concat runner-dir "/" py-gnitset-test-runner))))
-      (if (file-exists-p runner)
-          runner
-        (concat (py-gnitset-virtualenv-bin-or-current-dir) "/" py-gnitset-test-runner)))))
+           (runner (file-truename (concat runner-dir "/" py-gnitset-test-runner)))
+           (venv-runner (concat (py-gnitset-virtualenv-bin-or-current-dir) "/" py-gnitset-test-runner)))
+      (cond ((file-exists-p runner)
+             runner)
+            ((file-exists-p venv-runner)
+             venv-runner)
+            (t
+             (error "Couldn't find runner (%s) in virtualenv (%s) or project (%s)"
+                    py-gnitset-test-runner venv-runner runner))))))
 
 (defun py-gnitset-local-bufname ()
   "Get the compilation py-gnitset buffer for the currently executing buffer.
