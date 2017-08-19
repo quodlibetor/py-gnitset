@@ -136,8 +136,18 @@
   '("setup.py" "setup.cfg" ".git" ".hg")
   "Files that mark the root of a project for testing.
 
-Used if `virtualenv-default-directory' is not bound."
-  :group 'py-gnitset)
+Used if `py-gnitset-project-root' is not bound."
+  :group 'py-gnitset
+  :type '(repeat string))
+
+(defcustom py-gnitset-project-root
+  nil
+  "Directory-local explicit project root directory to use.
+
+Don't set in custom interface, useful in .dir-locals.el to override
+Automatic project searching."
+  :group 'py-gnitset
+  :type '(string))
 
 (defcustom py-gnitset-test-runner
   "py.test"
@@ -146,35 +156,38 @@ Used if `virtualenv-default-directory' is not bound."
 nil means to try to use py.test from `virtualenv-workon', or if
 that's not set to use a global py.test command.
 
-To set this for a project you should use dir-locals, for example, this .dir-locals.el:
+To set this for a project you should use dir-locals, for example,
+this .dir-locals.el:
 
     ((nil . ((virtualenv-workon . \"welltested\")
-             (virtualenv-default-directory . \"/home/user/projects/welltested/\"))))
+             (virtualenv-default-directory . \"~/projects/welltested/\"))))
 
 is equivalent to this one:
 
     ((nil . ((virtualenv-workon . \"welltested\")
-             (virtualenv-default-directory . \"/home/user/projects/welltested/\")
-             (py-gnitset-test-runner . \"/home/bwm/.virtualenvs/welltested/bin/py.test\"))))
+             (virtualenv-default-directory . \"~/projects/welltested/\")
+             (py-gnitset-test-runner .
+                \"~/.virtualenvs/welltested/bin/py.test\"))))
 
 Which is equivalent to the following:
 
     ((nil . ((virtualenv-workon . \"welltested\")
-             (virtualenv-default-directory . \"/home/user/projects/welltested/\")
+             (virtualenv-default-directory . \"~/projects/welltested/\")
              (py-gnitset-test-runner . \"py.test\"))))
 
 But if you wanted to use nose (which doesn't work for function or
 class level things yet) you would probably do something like:
 
     ((nil . ((virtualenv-workon . \"welltested\")
-             (virtualenv-default-directory . \"/home/user/projects/welltested/\")
+             (virtualenv-default-directory . \"~/projects/welltested/\")
              (py-gnitset-test-runner . \"nosetests\"))))
 
 And if you have a runner script called in
 \"/home/user/projects/welltested/runtests\" you could do:
 
     ((nil . ((py-gnitset-test-runner . \"runtests\"))))"
-  :group 'py-gnitset)
+  :group 'py-gnitset
+  :type '(string))
 
 (defcustom py-gnitset-runner-format
   'pytest
@@ -206,23 +219,27 @@ Valid choices are 'pytest and 'nose"
 (defun py-gnitset-locate-dominating-file ()
   "Find the project root."
   (cond
-   ((boundp 'virtualenv-default-directory)
-    virtualenv-default-directory)
+   ((and (boundp 'py-gnitset-project-root) py-gnitset-project-root)
+    py-gnitset-project-root)
    (t
-    (let ((py-gnitset-dom-re (mapconcat 'identity py-gnitset-project-root-files "\\|")))
-      (locate-dominating-file
-       (buffer-file-name)
-       (lambda (dir)
-         (when (file-directory-p dir)
-           (directory-files dir nil py-gnitset-dom-re))))))))
+    (expand-file-name (let ((py-gnitset-dom-re (mapconcat 'identity py-gnitset-project-root-files "\\|")))
+                        (locate-dominating-file
+                         (buffer-file-name)
+                         (lambda (dir)
+                           (when (file-directory-p dir)
+                             (directory-files dir nil py-gnitset-dom-re)))))))))
 
 (defun py-gnitset-virtualenv-bin-or-current-dir ()
   "Try to find the virtualenv for the local dir, else local dir."
-  (if (boundp 'virtualenv-workon)
-      ;; XXX remove this dependency on virtualenv.el
-      (concat (expand-file-name virtualenv-root)
-              "/" virtualenv-workon "/bin")
-    "."))
+  (cond
+   ((and (boundp 'venv-current-name) venv-current-name (boundp 'venv-current-dir))
+    (concat (expand-file-name venv-current-dir) "/bin"))
+   ((and (boundp 'virtualenv-workon) virtualenv-workon (boundp 'virtualenv-root))
+    (concat (expand-file-name virtualenv-root)
+            "/" virtualenv-workon "/bin"))
+   (t
+    (message "Couldn't infer virtualenv, using current directory")
+    ".")))
 
 (defun py-gnitset-get-bin ()
   "Try to figure out what file is meant by `py-gnitset-test-runner'.
@@ -233,11 +250,12 @@ Look in the current dir, all the ancestors, and the virtualenv."
     (let* ((runner-dir (locate-dominating-file (buffer-file-name)
                                                py-gnitset-test-runner))
            (runner (file-truename (concat runner-dir "/" py-gnitset-test-runner)))
-           (venv-runner (concat (py-gnitset-virtualenv-bin-or-current-dir) "/" py-gnitset-test-runner)))
+           (venv-runner (concat (py-gnitset-virtualenv-bin-or-current-dir)
+                                "/" py-gnitset-test-runner)))
       (cond ((file-exists-p runner)
              runner)
             ((file-exists-p venv-runner)
-             venv-runner)
+             (file-truename venv-runner))
             (t
              (error "Couldn't find runner (%s) in virtualenv (%s) or project (%s)"
                     py-gnitset-test-runner venv-runner runner))))))
@@ -274,7 +292,7 @@ functions.
 CMDLINE is the command line string generated by the command.
 SHOW-PROMPT t or nil, describes whether to show the CMDLINE in
 the minibuffer before executing.
-STYLE should be one of 'compile,'ansi, or 'pdb, and descibes the
+STYLE should be one of 'compile, 'ansi, or 'pdb, and descibes the
 kind of buffer to run the process in, as well as some extra args
 needed by that style."
   (let* ((default-directory (py-gnitset-locate-dominating-file))
@@ -302,12 +320,13 @@ needed by that style."
           (set-process-sentinel proc 'py-gnitset-term-sentinel))
         (set (make-local-variable 'show-trailing-whitespace) nil)))
      ((equal style 'compile)
-      (compilation-start cmdline nil
-                         (lambda (mode)
-                           (if (boundp 'py-gnitset--source)
-                               (with-current-buffer py-gnitset--source
-                                 (py-gnitset-local-bufname))
-                             (py-gnitset-local-bufname))))
+      (let ((cmdline (concat "cd " default-directory " ; " cmdline)))
+        (compilation-start cmdline nil
+                           (lambda (mode)
+                             (if (and (boundp 'py-gnitset--source) py-gnitset--source)
+                                 (with-current-buffer py-gnitset--source
+                                   (py-gnitset-local-bufname))
+                               (py-gnitset-local-bufname)))))
       (let ((buf (current-buffer)))
         (with-current-buffer (py-gnitset-local-bufname)
           (set (make-local-variable 'py-gnitset--source) buf)
