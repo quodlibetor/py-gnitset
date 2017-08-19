@@ -331,7 +331,7 @@ needed by that style."
         (with-current-buffer (py-gnitset-local-bufname)
           (set (make-local-variable 'py-gnitset--source) buf)
           (set (make-local-variable 'show-trailing-whitespace) nil)
-          (local-set-key "g" 'py-gnitset-recompile))))
+          (py-gnitset-compilation-mode))))
      ((equal style 'pdb)
       (pdb (concat cmdline " -s --pdb"))))))
 
@@ -349,8 +349,7 @@ every recompilation, meaning that it's hard to know where to go."
     (recompile)
     (with-current-buffer compile-buffer
       (set (make-local-variable 'py-gnitset--source) source-buffer)
-      (set (make-local-variable 'show-trailing-whitespace) nil)
-      (local-set-key "g" 'py-gnitset-recompile))))
+      (set (make-local-variable 'show-trailing-whitespace) nil))))
 
 ;;; Locator functions -- find the thing to test
 (defun py-gnitset-arg-from-path (path)
@@ -596,6 +595,19 @@ there are 'py-gnitset-*-module', -class, and -function commands.
 
 \\{py-gnitset-mode-map}"
   :keymap py-gnitset-mode-map
+  :group 'py-gnitset)
+
+
+;;;###autoload
+(defvar py-gnitset-compilation-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "g") 'py-gnitset-recompile)
+    (define-key map (kbd "q") 'quit-window)
+    map))
+
+(define-minor-mode py-gnitset-compilation-mode
+  "Customize compilation mode"
+  :keymap py-gnitset-compilation-mode-map
   :group 'py-gnitset)
 
 ;;;###autoload
