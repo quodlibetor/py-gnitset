@@ -266,9 +266,14 @@ Look in the current dir, all the ancestors, and the virtualenv."
 Tries to get py-gnitset for the local virtualenv, falling back to global.
 
 Doesn't work in compilation buffers because dir-local variables aren't set"
-  (if (boundp 'virtualenv-workon)
-      (format "*py-gnitset-%s*" virtualenv-workon)
-    "*py-gnitset*"))
+  (cond
+   ((boundp 'venv-current-name)
+    (format "*py-gnitset-%s*" venv-current-name))
+   ((boundp 'pyvenv-virtual-env)
+    (format "*py-gnitset-%s*" pyvenv-virtual-env))
+   ((boundp 'virtualenv-workon)
+    (format "*py-gnitset-%s*" virtualenv-workon))
+   (t "*py-gnitset*")))
 
 (defun py-gnitset-term-sentinel (proc msg)
   "Function to monitor the py-gnitset-term.
